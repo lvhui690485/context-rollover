@@ -1,0 +1,7 @@
+# local Claude Code state — never commit
+state/
+*.bak-*
+*.log
+
+# OS noise
+.DS_Store

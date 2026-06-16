@@ -1,0 +1,16 @@
+{
+  "comment": "Merge this PostToolUse entry into your ~/.claude/settings.json hooks. install.sh does this for you. Replace /Users/you with your home path.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "HUD_ROLLOVER_THRESHOLD=60 HUD_ROLLOVER_COOLDOWN=300 /Users/you/.claude/hooks/hud-context-rollover.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
