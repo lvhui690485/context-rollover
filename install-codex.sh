@@ -14,7 +14,7 @@ set -euo pipefail
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 DEST="$CODEX_HOME/rollover"
-LABEL="com.claude-context-rollover.codex-watcher"
+LABEL="com.context-rollover.codex-watcher"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 DAEMON=1
 [ "${1:-}" = "--no-daemon" ] && DAEMON=0

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# install.sh — install the claude-context-rollover hook into Claude Code.
+# install.sh — install the context-rollover hook into Claude Code.
 #
 # - copies hooks/hud-context-rollover.sh to $CLAUDE_CONFIG_DIR/hooks/
 # - registers it as a PostToolUse hook in settings.json (idempotent, backed up)

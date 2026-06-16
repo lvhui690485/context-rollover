@@ -33,7 +33,7 @@
 #   HUD_ROLLOVER_REFRESH_HANDOFF=1  run a repo handoff refresher before spawning (opt-in)
 #   HUD_ROLLOVER_DISABLE=1     hard off for this invocation
 #
-# MIT License. https://github.com/lvhui690485/claude-context-rollover
+# MIT License. https://github.com/lvhui690485/context-rollover
 #
 set -u
 

@@ -1,4 +1,4 @@
-# claude-context-rollover
+# context-rollover
 
 **When a Claude Code session fills up its context window, hand the work off to a
 fresh window — automatically.**
@@ -114,8 +114,8 @@ PostToolUse ─▶ read claude-hud cache for this session
 ## Install
 
 ```bash
-git clone https://github.com/lvhui690485/claude-context-rollover
-cd claude-context-rollover
+git clone https://github.com/lvhui690485/context-rollover
+cd context-rollover
 ./install.sh
 ```
 

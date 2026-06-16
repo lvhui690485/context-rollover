@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# uninstall.sh — remove the claude-context-rollover hook from Claude Code.
+# uninstall.sh — remove the context-rollover hook from Claude Code.
 #
 set -euo pipefail
 
