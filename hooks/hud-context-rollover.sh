@@ -115,13 +115,13 @@ handoff_file="$cwd/$handoff_rel"
 if [ -n "${HUD_ROLLOVER_SEED:-}" ]; then
   seed="$HUD_ROLLOVER_SEED"
 elif [ -f "$resume_file" ]; then
-  seed="The previous session reached ${used}% context and handed off to this window. First read .ai/harness/handoff/resume.md and tasks/current.md, reconcile against the live repo (active plan, git status), then continue from the next step. Do not redo completed work."
+  seed="上一会话上下文已达 ${used}%，已交接到本窗口续写。先读 .ai/harness/handoff/resume.md 与 tasks/current.md，并以仓库源工件（active plan 的 Task Breakdown、git status）校准，然后从下一步继续，不要重做已完成的工作。"
 elif rollover_make_handoff "$PY" "$handoff_gen" "$transcript" "$cwd" "$used" "$handoff_file"; then
   # self-contained handoff written into the repo; keep git clean via info/exclude.
   [ -z "${HUD_ROLLOVER_NO_GITIGNORE:-}" ] && rollover_git_exclude "$cwd" "$handoff_rel"
-  seed="The previous session reached ${used}% context and handed off to this window. First read the handoff file ./$handoff_rel (it captures the task, recent actions, files touched, and the git diff), then continue the in-progress work from where it left off. Do not redo completed work."
+  seed="上一会话上下文已达 ${used}%，已交接到本窗口续写。先读交接文档 ./$handoff_rel（含任务、最近动作、改过的文件、git diff），然后从上次中断处继续，不要重做已完成的工作。"
 else
-  seed="The previous session reached ${used}% context and handed off to this window. Reconstruct where it left off from git log/status and the uncommitted diff, then continue from the next step. Do not redo completed work."
+  seed="上一会话上下文已达 ${used}%，已交接到本窗口续写。先用 git log/status 和未提交的 diff 还原进度，然后从下一步继续，不要重做已完成的工作。"
 fi
 
 # Make the seed safe inside single quotes regardless of its content.
@@ -196,7 +196,7 @@ rollover_spawn "$cwd" "$newcmd" && spawned=1
 # --- stop THIS session only if the handoff window actually opened -------------
 if [ "$spawned" -eq 1 ]; then
   date +%s > "$cdfile" 2>/dev/null          # arm the global cooldown
-  printf '{"continue": false, "stopReason": "Context %s%% >= %s%% — handed off to a fresh window. This session is stopping.", "systemMessage": "🪟 Context %s%% >= %s%% — opened a fresh window to continue; this session is stopping."}\n' \
+  printf '{"continue": false, "stopReason": "上下文 %s%% ≥ %s%%，已交接到新窗口续写，本会话停止。", "systemMessage": "🪟 上下文 %s%% ≥ %s%% — 已开新窗口续写，本会话停止。"}\n' \
     "$used" "$THRESHOLD" "$used" "$THRESHOLD"
   exit 0
 fi
