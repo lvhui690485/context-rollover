@@ -88,9 +88,15 @@ PY
 
 # spawn a fresh codex window (reuses tmux/iTerm/Ghostty/Terminal backends)
 spawn_codex() {
-  local cwd="$1" seed="$2" newcmd esc
+  local cwd="$1" seed="$2" newcmd esc guard sani
   esc="$(printf '%s' "$seed" | sed "s/'/'\\\\''/g")"
-  newcmd="cd $(printf '%q' "$cwd") && codex '$esc'"
+  # `open` hands our env to the spawned app. If the inherited CODEX_HOME has no
+  # auth.json (stale/test/temp), the child codex re-prompts login — drop it so it
+  # falls back to the default ~/.codex creds. Evaluate in the CHILD shell.
+  guard='[ -n "${CODEX_HOME:-}" ] && [ ! -f "${CODEX_HOME:-}/auth.json" ] && unset CODEX_HOME'
+  # never let the watcher's tuning env leak into the spawned session
+  sani='unset CODEX_ROLLOVER_THRESHOLD CODEX_ROLLOVER_POLL CODEX_ROLLOVER_IDLE CODEX_ROLLOVER_ACTIVE CODEX_ROLLOVER_COOLDOWN CODEX_ROLLOVER_MAX_BURST CODEX_ROLLOVER_SEED CODEX_ROLLOVER_ONCE CODEX_ROLLOVER_DRYRUN CODEX_ROLLOVER_STATE CODEX_ROLLOVER_HANDOFF_PATH'
+  newcmd="$guard; $sani; cd $(printf '%q' "$cwd") && codex '$esc'"
   if [ -n "${TMUX:-}" ] && tmux split-window -h -c "$cwd" "$newcmd" 2>/dev/null; then return 0; fi
   if [ "${TERM_PROGRAM:-}" = "iTerm.app" ] && osascript \
       -e 'on run argv' -e 'tell application "iTerm"' -e 'activate' \

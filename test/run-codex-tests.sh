@@ -58,6 +58,10 @@ out4=$(CODEX_HOME="$CH" CODEX_ROLLOVER_ONCE=1 CODEX_ROLLOVER_DRYRUN=1 \
        CODEX_ROLLOVER_IDLE=0 CODEX_ROLLOVER_THRESHOLD=60 bash "$WATCH" 2>&1)
 [ -z "$out4" ] && ok "halted by kill switch" || no "ran despite DISABLED"
 
+echo "E) spawned codex env is guarded (CODEX_HOME auth fallback + tuning unset)"
+grep -q 'auth.json" \] && unset CODEX_HOME' "$WATCH" && ok "CODEX_HOME auth guard present" || no "missing CODEX_HOME guard"
+grep -q 'unset CODEX_ROLLOVER_THRESHOLD' "$WATCH" && ok "tuning env sanitized in spawn" || no "missing env sanitize"
+
 rm -rf "$T"
 echo "-----"
 echo "pass=$pass fail=$fail"
