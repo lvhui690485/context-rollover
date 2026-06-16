@@ -36,11 +36,13 @@ rel="${HUD_ROLLOVER_HANDOFF_PATH:-.claude/rollover-handoff.md}"
 hf="$cwd/$rel"
 [ -f "$hf" ] || exit 0
 
-# freshness gate
+# freshness gate. A rollover spawns the new window within ~1s, so a tight window
+# is plenty and shrinks the chance of injecting a stale handoff into an unrelated
+# session opened manually in the same repo soon after.
 mtime="$(stat -f %m "$hf" 2>/dev/null || stat -c %Y "$hf" 2>/dev/null)"
 case "$mtime" in ''|*[!0-9]*) exit 0;; esac
 now="$(date +%s 2>/dev/null)"
-maxage="${HUD_ROLLOVER_INJECT_MAXAGE:-900}"
+maxage="${HUD_ROLLOVER_INJECT_MAXAGE:-300}"
 [ $(( now - mtime )) -le "$maxage" ] || exit 0
 
 # consume-once: skip if we already injected this exact handoff (by mtime)

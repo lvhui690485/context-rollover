@@ -59,26 +59,47 @@ read_session() {
   "$PY" - "$1" <<'PY'
 import json, os, sys
 path = sys.argv[1]
-cwd = sid = None
-win = cur = None
+cwd = sid = win = cur = None
+
+# session_meta is at the top: scan the head and stop once found (don't parse the
+# whole — possibly multi-MB — file on every poll).
 try:
-    for line in open(path, encoding="utf-8", errors="replace"):
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for i, line in enumerate(f):
+            try:
+                o = json.loads(line)
+            except Exception:
+                continue
+            if o.get("type") == "session_meta":
+                p = o.get("payload", {})
+                cwd = p.get("cwd"); sid = p.get("id")
+                break
+            if i > 200:
+                break
+except Exception:
+    sys.exit(0)
+
+# the latest token_count is appended last: read only a tail chunk and scan
+# backward for the most recent one.
+try:
+    size = os.path.getsize(path)
+    with open(path, "rb") as f:
+        f.seek(max(0, size - 256 * 1024))
+        tail = f.read().decode("utf-8", "replace").splitlines()
+    for line in reversed(tail):
         try:
             o = json.loads(line)
         except Exception:
             continue
-        t = o.get("type")
-        if t == "session_meta":
-            p = o.get("payload", {})
-            cwd = p.get("cwd"); sid = p.get("id")
         p = o.get("payload", {})
         if isinstance(p, dict) and p.get("type") == "token_count" and p.get("info"):
             info = p["info"]
             win = info.get("model_context_window")
-            lt = info.get("last_token_usage") or {}
-            cur = lt.get("input_tokens")
+            cur = (info.get("last_token_usage") or {}).get("input_tokens")
+            break
 except Exception:
-    sys.exit(0)
+    pass
+
 if not (cwd and win and cur):
     sys.exit(0)
 pct = round(100 * cur / win)
@@ -166,7 +187,14 @@ print(c)' "$LOG" "$now" 2>/dev/null)"
   local hf="$cwd/$rel" seed
   mkdir -p "$(dirname "$hf")" 2>/dev/null
   if [ -f "$HANDOFF_GEN" ] && "$PY" "$HANDOFF_GEN" "$f" "$cwd" "$pct" "$hf" >/dev/null 2>&1 && [ -s "$hf" ]; then
-    [ -d "$cwd/.git" ] && { grep -qxF "$rel" "$cwd/.git/info/exclude" 2>/dev/null || printf '%s\n' "$rel" >> "$cwd/.git/info/exclude" 2>/dev/null; }
+    if [ -e "$cwd/.git" ]; then   # file in worktrees, dir in normal repos
+      excl="$(git -C "$cwd" rev-parse --git-path info/exclude 2>/dev/null)"
+      if [ -n "$excl" ]; then
+        case "$excl" in /*) :;; *) excl="$cwd/$excl";; esac
+        mkdir -p "$(dirname "$excl")" 2>/dev/null
+        grep -qxF "$rel" "$excl" 2>/dev/null || printf '%s\n' "$rel" >> "$excl" 2>/dev/null || true
+      fi
+    fi
     seed="${CODEX_ROLLOVER_SEED:-The previous codex session reached ${pct}% context and handed off to this window. First read ./$rel (task, plan, recent actions, edited files, git diff), then continue the in-progress work from where it left off. Do not redo completed work.}"
   else
     seed="${CODEX_ROLLOVER_SEED:-The previous codex session reached ${pct}% context and handed off to this window. Reconstruct from git status/diff and continue from the next step. Do not redo completed work.}"

@@ -56,13 +56,14 @@ PY="$(command -v python3 || echo /usr/bin/python3)"
 json="$(cat 2>/dev/null)"
 [ -n "$json" ] || exit 0
 
-read -r transcript cwd session_id <<EOF2
+# tab-separated so a path containing spaces is not word-split into the wrong field
+IFS=$'\t' read -r transcript cwd session_id <<EOF2
 $(printf '%s' "$json" | "$PY" -c 'import sys,json
 try:
     d=json.load(sys.stdin)
-    print((d.get("transcript_path") or "").strip(), (d.get("cwd") or "").strip(), (d.get("session_id") or "").strip())
+    print("\t".join([(d.get("transcript_path") or "").strip(), (d.get("cwd") or "").strip(), (d.get("session_id") or "").strip()]))
 except Exception:
-    print("","","")' 2>/dev/null)
+    print("\t\t")' 2>/dev/null)
 EOF2
 
 [ -n "$transcript" ] || exit 0
@@ -115,10 +116,16 @@ elif [ -f "$resume_file" ]; then
   seed="The previous session reached ${used}% context and handed off to this window. First read .ai/harness/handoff/resume.md and tasks/current.md, reconcile against the live repo (active plan, git status), then continue from the next step. Do not redo completed work."
 elif [ -f "$handoff_gen" ] && mkdir -p "$(dirname "$handoff_file")" 2>/dev/null && "$PY" "$handoff_gen" "$transcript" "$cwd" "$used" "$handoff_file" >/dev/null 2>&1 && [ -s "$handoff_file" ]; then
   # self-contained handoff written into the repo (transcript + git state).
-  # Keep git clean without touching a tracked .gitignore: use .git/info/exclude.
-  if [ -d "$cwd/.git" ] && [ -z "${HUD_ROLLOVER_NO_GITIGNORE:-}" ]; then
-    excl="$cwd/.git/info/exclude"
-    grep -qxF "$handoff_rel" "$excl" 2>/dev/null || printf '%s\n' "$handoff_rel" >> "$excl" 2>/dev/null || true
+  # Keep git clean without touching a tracked .gitignore: use info/exclude.
+  # `[ -e .git ]` (file in worktrees, dir in normal repos) + rev-parse resolves
+  # the correct exclude path in both layouts.
+  if [ -e "$cwd/.git" ] && [ -z "${HUD_ROLLOVER_NO_GITIGNORE:-}" ]; then
+    excl="$(git -C "$cwd" rev-parse --git-path info/exclude 2>/dev/null)"
+    if [ -n "$excl" ]; then
+      case "$excl" in /*) :;; *) excl="$cwd/$excl";; esac
+      mkdir -p "$(dirname "$excl")" 2>/dev/null
+      grep -qxF "$handoff_rel" "$excl" 2>/dev/null || printf '%s\n' "$handoff_rel" >> "$excl" 2>/dev/null || true
+    fi
   fi
   seed="The previous session reached ${used}% context and handed off to this window. First read the handoff file ./$handoff_rel (it captures the task, recent actions, files touched, and the git diff), then continue the in-progress work from where it left off. Do not redo completed work."
 else

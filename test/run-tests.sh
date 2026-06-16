@@ -85,6 +85,29 @@ touch -t 202001010000 "$hf"; rm -f "$T/state/hud-rollover/injected-"*
 out3=$(ssrun h3 | CLAUDE_CONFIG_DIR="$T" HUD_ROLLOVER_INJECT_MAXAGE=900 bash "$SS" 2>/dev/null)
 [ -z "$out3" ] && ok "freshness: stale handoff skipped" || no "injected stale handoff"
 
+echo "I) path with a space still resolves (tab-separated field read)"
+SP="$T/dir with space"; mkdir -p "$SP"
+sptx="$SP/s.jsonl"; : > "$sptx"
+sph=$(printf '%s' "$sptx" | shasum -a 256 | awk '{print $1}')
+printf '{"used_percentage":70,"context_window_size":1000000}' > "$T/plugins/claude-hud/context-cache/$sph.json"
+out=$(printf '{"transcript_path":"%s","cwd":"%s","session_id":"i"}' "$sptx" "$SP" \
+  | CLAUDE_CONFIG_DIR="$T" HUD_ROLLOVER_DRYRUN=1 "$HOOK" 2>&1)
+echo "$out" | grep -q "would run" && ok "space path reaches decision (not mis-split)" || no "space path mis-split → no-op"
+
+echo "J) handoff is excluded via the correct path in a git worktree"
+MAIN="$T/main"; WT="$T/wt"
+( mkdir -p "$MAIN" && cd "$MAIN" && git init -q && git config user.email t@t && git config user.name t \
+  && git commit -q --allow-empty -m init && git worktree add -q "$WT" 2>/dev/null )
+wttx="$T/wt.jsonl"; : > "$wttx"
+wth=$(printf '%s' "$wttx" | shasum -a 256 | awk '{print $1}')
+printf '{"used_percentage":70,"context_window_size":1000000}' > "$T/plugins/claude-hud/context-cache/$wth.json"
+printf '{"transcript_path":"%s","cwd":"%s","session_id":"j"}' "$wttx" "$WT" \
+  | CLAUDE_CONFIG_DIR="$T" HUD_ROLLOVER_DRYRUN=1 "$HOOK" >/dev/null 2>&1
+excl="$(git -C "$WT" rev-parse --git-path info/exclude 2>/dev/null)"
+case "$excl" in /*) :;; *) excl="$WT/$excl";; esac
+grep -qxF ".claude/rollover-handoff.md" "$excl" 2>/dev/null && ok "worktree exclude written (.git is a file there)" || no "worktree exclude missed"
+[ ! -d "$WT/.git" ] && ok "confirmed .git is a file in the worktree" || no "test setup: .git is a dir"
+
 rm -rf "$T"
 echo "-----"
 echo "pass=$pass fail=$fail"
