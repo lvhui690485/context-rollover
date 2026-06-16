@@ -186,6 +186,36 @@ env reach the process you spawn, always rate-limit, always have an auto-trip.**
 
 ---
 
+## Codex CLI support
+
+The same idea works for [Codex CLI](https://github.com/openai/codex) — with a
+different trigger, because Codex has no per-tool hook.
+
+- **Signal.** Every Codex session rollout (`~/.codex/sessions/**/rollout-*.jsonl`)
+  embeds a `token_count` event with `last_token_usage.input_tokens` **and**
+  `model_context_window`. So context % is read straight from the session file —
+  no plugin needed.
+- **Trigger.** A tiny **zero-intrusion background watcher**
+  (`codex/codex-context-watcher.sh`) polls the active rollouts. When one crosses
+  the threshold **and has gone idle** (Codex writes `token_count` at turn-end, so
+  the session is already waiting for input), it generates a handoff and opens a
+  fresh `codex` window. Nothing forcibly stops — the old turn is already done.
+  It never touches `config.toml` or your `notify` program.
+- **Handoff.** The same generator parses the Codex rollout format and captures
+  the task, the **`update_plan` steps with their status**, the apply_patch'd
+  files, and the git diff — into `.claude/rollover-handoff.md`, just like the
+  Claude side.
+
+```bash
+./install-codex.sh            # installs the watcher + a launchd agent (auto-starts)
+./install-codex.sh --no-daemon  # files only; run the watcher yourself
+./uninstall-codex.sh
+```
+
+Same safety nets as the Claude side (per-session latch, global cooldown, burst
+auto-disable, `DISABLED` kill switch), under `~/.codex/rollover-state/`. Knobs are
+`CODEX_ROLLOVER_THRESHOLD` / `_POLL` / `_IDLE` / `_COOLDOWN` / `_SEED`.
+
 ## Limitations
 
 - macOS-first. On Linux only the **tmux** backend works today (PRs welcome for
