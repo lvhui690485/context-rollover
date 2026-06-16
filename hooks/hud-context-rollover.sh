@@ -119,7 +119,7 @@ elif [ -f "$resume_file" ]; then
 elif rollover_make_handoff "$PY" "$handoff_gen" "$transcript" "$cwd" "$used" "$handoff_file"; then
   # self-contained handoff written into the repo; keep git clean via info/exclude.
   [ -z "${HUD_ROLLOVER_NO_GITIGNORE:-}" ] && rollover_git_exclude "$cwd" "$handoff_rel"
-  seed="上一会话上下文已达 ${used}%，已交接到本窗口续写。先读交接文档 ./$handoff_rel（含任务、最近动作、改过的文件、git diff），然后从上次中断处继续，不要重做已完成的工作。"
+  seed="上一会话上下文已达 ${used}%，已交接到本窗口续写。先读交接文档 ./${handoff_rel}（含任务、最近动作、改过的文件、git diff），然后从上次中断处继续，不要重做已完成的工作。"
 else
   seed="上一会话上下文已达 ${used}%，已交接到本窗口续写。先用 git log/status 和未提交的 diff 还原进度，然后从下一步继续，不要重做已完成的工作。"
 fi

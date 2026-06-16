@@ -170,7 +170,7 @@ handle_session() {
   local hf="$cwd/$rel" seed
   if rollover_make_handoff "$PY" "$HANDOFF_GEN" "$f" "$cwd" "$pct" "$hf"; then
     [ -z "${CODEX_ROLLOVER_NO_GITIGNORE:-}" ] && rollover_git_exclude "$cwd" "$rel"
-    seed="${CODEX_ROLLOVER_SEED:-上一 codex 会话上下文已达 ${pct}%，已交接到本窗口续写。先读 ./$rel（含任务、计划、最近动作、改过的文件、git diff），然后从上次中断处继续，不要重做已完成的工作。}"
+    seed="${CODEX_ROLLOVER_SEED:-上一 codex 会话上下文已达 ${pct}%，已交接到本窗口续写。先读 ./${rel}（含任务、计划、最近动作、改过的文件、git diff），然后从上次中断处继续，不要重做已完成的工作。}"
   else
     seed="${CODEX_ROLLOVER_SEED:-上一 codex 会话上下文已达 ${pct}%，已交接到本窗口续写。先用 git status/diff 还原进度，然后从下一步继续，不要重做已完成的工作。}"
   fi

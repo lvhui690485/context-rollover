@@ -16,6 +16,14 @@ no(){ echo "  ❌ $1"; fail=$((fail+1)); }
 bash -n "$HOOK" && ok "rollover syntax" || no "rollover syntax"
 bash -n "$SS" && ok "session-start syntax" || no "session-start syntax"
 
+# lint: a $var directly followed by a non-ASCII byte (e.g. Chinese '（') makes
+# bash glue the byte onto the name → 'unbound variable' under set -u. Brace it.
+if grep -rlP '\$[A-Za-z_][A-Za-z0-9_]*[^\x00-\x7F]' "$ROOT/hooks" "$ROOT/codex" >/dev/null 2>&1; then
+  no "unbraced \$var glued to non-ASCII (use \${var}): $(grep -rlP '\$[A-Za-z_][A-Za-z0-9_]*[^\x00-\x7F]' "$ROOT/hooks" "$ROOT/codex" | tr '\n' ' ')"
+else
+  ok "no \$var glued to non-ASCII text"
+fi
+
 T="$(mktemp -d)"; faketx="$T/s.jsonl"; : > "$faketx"
 h=$(printf '%s' "$faketx" | shasum -a 256 | awk '{print $1}')
 mkdir -p "$T/plugins/claude-hud/context-cache" "$T/state/hud-rollover"
