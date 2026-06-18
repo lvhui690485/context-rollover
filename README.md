@@ -89,12 +89,23 @@ So this tool runs as a **`PostToolUse` hook**: after each tool call it reads tha
 file for the current session, and if usage ≥ threshold it spawns the new window
 and returns `{"continue": false}` to stop the current one.
 
+`{"continue": false}` is a **soft** stop — it ends the current turn only. If the
+old window is resumed (you type, or an autonomous loop keeps going), it would
+otherwise grind from the threshold up to 100% with nothing left to stop it. So
+the latch governs **spawning** only: a session that has already handed off and is
+*still* at/over the threshold gets the stop **re-emitted on every tool call**
+(logged as `RESTOP`), **without** opening another window. A session whose context
+later drops below the threshold (e.g. after `/compact`) is left alone.
+
 ```
 PostToolUse ─▶ read claude-hud cache for this session
             ─▶ used% < threshold ?  ── yes ─▶ exit (near-zero cost)
                        │ no
                        ▼
-            fire-once latch + cooldown + burst guard
+            already handed off (latch set) ? ─ yes ─▶ re-emit {"continue": false}
+                       │ no                            (RESTOP; no new window)
+                       ▼
+            set fire-once spawn latch + cooldown + burst guard
                        ▼
             spawn fresh `claude` in a new pane (tmux/iTerm/Ghostty/Terminal)
                        ▼

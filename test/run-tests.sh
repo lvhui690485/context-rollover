@@ -116,6 +116,22 @@ case "$excl" in /*) :;; *) excl="$WT/$excl";; esac
 grep -qxF ".claude/rollover-handoff.md" "$excl" 2>/dev/null && ok "worktree exclude written (.git is a file there)" || no "worktree exclude missed"
 [ ! -d "$WT/.git" ] && ok "confirmed .git is a file in the worktree" || no "test setup: .git is a dir"
 
+echo "K) already handed off + still over threshold -> re-stop, no NEW window"
+rm -f "$T/state/hud-rollover/DISABLED" "$T/state/hud-rollover/last-spawn.epoch"
+ktx="$T/k.jsonl"; : > "$ktx"
+kh=$(printf '%s' "$ktx" | shasum -a 256 | awk '{print $1}')
+printf '{"used_percentage":70,"context_window_size":1000000}' > "$T/plugins/claude-hud/context-cache/$kh.json"
+: > "$T/state/hud-rollover/$kh.fired"          # simulate: this session already handed off once
+krun(){ printf '{"transcript_path":"%s","cwd":"%s","session_id":"k"}' "$ktx" "$PWD"; }
+out=$(krun | CLAUDE_CONFIG_DIR="$T" "$HOOK" 2>&1)
+echo "$out" | grep -q '"continue": false' && ok "re-emits continue:false on resumed over-threshold session" || no "did not re-stop (got: $out)"
+[ ! -f "$T/state/hud-rollover/last-spawn.epoch" ] && ok "no NEW window spawned (cooldown epoch untouched)" || no "spawned a new window"
+tail -1 "$LOG" 2>/dev/null | grep -q "RESTOP" && ok "logged RESTOP" || no "no RESTOP log line"
+# below threshold while latched → must go silent (don't nag a compacted session)
+printf '{"used_percentage":40,"context_window_size":1000000}' > "$T/plugins/claude-hud/context-cache/$kh.json"
+out=$(krun | CLAUDE_CONFIG_DIR="$T" "$HOOK" 2>&1)
+[ -z "$out" ] && ok "latched but below threshold -> silent" || no "nagged below threshold (got: $out)"
+
 rm -rf "$T"
 echo "-----"
 echo "pass=$pass fail=$fail"

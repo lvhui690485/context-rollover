@@ -88,15 +88,31 @@ if [ "$used" -lt "$THRESHOLD" ]; then
   exit 0
 fi
 
-# --- fire-once latch (per session transcript) --------------------------------
+# --- fire-once SPAWN latch + keep-stopping an already-handed-off session ------
+# The latch guarantees we open a NEW window at most once per session (the
+# fork-bomb guard). But `continue:false` is a SOFT stop — it ends one turn only.
+# If the old window is resumed (you type, or an autonomous loop keeps going), it
+# would otherwise grind from the threshold up to 100% with nothing left to stop
+# it (this is the "old window still burning tokens" bug). So for a session that
+# already handed off AND is STILL at/over the threshold, re-emit the stop on
+# every PostToolUse — WITHOUT spawning another window. (We only reach here when
+# used >= THRESHOLD; below-threshold sessions already exited above, so a
+# compacted/shrunk session is left alone.)
 mkdir -p "$LATCH_DIR" 2>/dev/null
 latch="$LATCH_DIR/$hash.fired"
+stamp="$(date '+%F %T' 2>/dev/null)"
 if [ -e "$latch" ]; then
+  if [ -n "${HUD_ROLLOVER_DRYRUN:-}" ]; then
+    echo "[hud-rollover dry-run] already handed off; used=${used}% >= ${THRESHOLD}% → would re-emit {\"continue\": false} (no new window)" >&2
+    exit 0
+  fi
+  printf '%s RESTOP used=%s%% thr=%s%% cwd=%s session=%s\n' "$stamp" "$used" "$THRESHOLD" "$cwd" "$session_id" >> "$LOG" 2>/dev/null
+  printf '{"continue": false, "stopReason": "上下文 %s%% ≥ %s%%，已交接到新窗口，本会话保持停止（不会再开新窗口）。", "systemMessage": "🛑 上下文 %s%% ≥ %s%% — 已交接，本会话保持停止。"}\n' \
+    "$used" "$THRESHOLD" "$used" "$THRESHOLD"
   exit 0
 fi
 : > "$latch" 2>/dev/null
 
-stamp="$(date '+%F %T' 2>/dev/null)"
 now_epoch="$(date +%s 2>/dev/null)"
 
 # --- adaptive seed prompt for the new (lean) session -------------------------
